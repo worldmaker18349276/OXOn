@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>tensor of OXO game</title>
+<meta charset="utf-8">
+
+<style>
+* {
+  font-size: 20px;
+}
+
+.board, .board>tbody>tr>td {
+  position: relative;
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+.board.O {
+  outline: 3px solid blue;
+}
+.board.X {
+  outline: 3px solid red;
+}
+.board.O .grid:hover, .board.Oready {
+  background-color: SkyBlue;
+}
+.board.X .grid:hover, .board.Xready {
+  background-color: pink;
+}
+.grid {
+  width: 1em;
+  height: 1em;
+  text-align: center;
+  overflow: hidden;
+}
+.grid.O::after {
+  content: 'O';
+  color: blue;
+}
+.grid.X::after {
+  content: 'X';
+  color: red;
+}
+
+.Owin, .Xwin {
+  position: absolute;
+  border-width: 1px;
+  border-style: solid;
+  pointer-events: none;
+}
+.Owin {
+  border-color: blue;
+}
+.Xwin {
+  border-color: red;
+}
+
+.l012 {
+  top: calc(100% / 6);
+  left: 0.2em;
+  right: 0.2em;
+  height: 0;
+}
+.l345 {
+  top: calc(100% / 2);
+  left: 0.2em;
+  right: 0.2em;
+  height: 0;
+}
+.l678 {
+  top: calc(100% * 5 / 6);
+  left: 0.2em;
+  right: 0.2em;
+  height: 0;
+}
+.l036 {
+  left: calc(100% / 6);
+  top: 0.2em;
+  bottom: 0.2em;
+  width: 0;
+}
+.l147 {
+  left: calc(100% / 2);
+  top: 0.2em;
+  bottom: 0.2em;
+  width: 0;
+}
+.l258 {
+  left: calc(100% * 5 / 6);
+  top: 0.2em;
+  bottom: 0.2em;
+  width: 0;
+}
+.l048 {
+  left: calc(50% - ( 50% - 0.2em ) * 1.414);
+  right: calc(50% - ( 50% - 0.2em ) * 1.414);
+  top: 50%;
+  height: 0;
+  transform: rotate(45deg);
+}
+.l246 {
+  left: calc(50% - ( 50% - 0.2em ) * 1.414);
+  right: calc(50% - ( 50% - 0.2em ) * 1.414);
+  top: 50%;
+  height: 0;
+  transform: rotate(315deg);
+}
+</style>
+
+<script>
+var OXO = document.getElementById("OXO");
+function makeOXO(n) {
+  var root = document.createElement("div");
+  root.classList.add("root");
+
+  var O = document.createElement("span");
+  var vs = document.createElement("span");
+  var X = document.createElement("span");
+  O.id = "Oscore";
+  X.id = "Xscore";
+  O.style = "color: blue";
+  X.style = "color: red";
+  O.innerHTML = "0";
+  vs.innerHTML = "-";
+  X.innerHTML = "0";
+  root.appendChild(O);
+  root.appendChild(vs);
+  root.appendChild(X);
+
+  var board = "<div class='grid'></div>";
+  for ( let i=0; i<n; i++ )
+    board = `
+      <table id='OXO' class='board'>
+        <tr>
+          <td>${board}</td>
+          <td>${board}</td>
+          <td>${board}</td>
+        </tr>
+        <tr>
+          <td>${board}</td>
+          <td>${board}</td>
+          <td>${board}</td>
+        </tr>
+        <tr>
+          <td>${board}</td>
+          <td>${board}</td>
+          <td>${board}</td>
+        </tr>
+      </table>
+    `;
+  root.innerHTML += board;
+  root.querySelector(".board").classList.add("O");
+
+  root.addEventListener("click", function(event) {
+    var target = (event.target.nodeType === Node.TEXT_NODE) ? event.target.parentNode : event.target;
+    if ( !target.matches(".grid:not(.O):not(.X)") )
+      return;
+
+    var board = target.closest(".board");
+    var A, B;
+    if ( board.matches(".O") || board.matches(".root>.board.O .board") )
+      [A, B] = ["O", "X"];
+    else if ( board.matches(".X") || board.matches(".root>.board.X .board") )
+      [A, B] = ["X", "O"];
+    else
+      return;
+
+    target.classList.add(A);
+    console.log("%c"+target.indices.slice(0), A=="O" ? "color:blue" : "color:red");
+    check(board, A);
+
+    this.querySelector(".board."+A).classList.remove(A);
+    this.querySelector(".board."+B+"ready").classList.add(B);
+  });
+
+  function mouseenter_handler(event) {
+    for ( let board of root.querySelectorAll(".board.Oready") )
+      board.classList.remove("Oready");
+    for ( let board of root.querySelectorAll(".board.Xready") )
+      board.classList.remove("Xready");
+
+    var board = this.closest(".board");
+    var A, B;
+    if ( board.matches(".O") || board.matches(".root>.board.O .board") )
+      [A, B] = ["O", "X"];
+    else if ( board.matches(".X") || board.matches(".root>.board.X .board") )
+      [A, B] = ["X", "O"];
+    else
+      return;
+  
+    var next = this.next;
+    if ( !next.querySelector(".grid:not(.O):not(.X):not(:hover)") )
+      next = root.querySelector(".board");
+
+    next.classList.add(B+"ready");
+  }
+  function mouseleave_handler(event) {
+    for ( let board of this.querySelectorAll(".board.Oready") )
+      board.classList.remove("Oready");
+    for ( let board of this.querySelectorAll(".board.Xready") )
+      board.classList.remove("Xready");
+  }
+
+  function check(board, who) {
+    var grids = Array.from(board.querySelectorAll(".grid"));
+    const check_list = ["012", "345", "678", "036", "147", "258", "048", "246"];
+    for ( let num of check_list )
+      if ( [...num].every(n => grids[parseInt(n)].matches("."+who)) ) {
+        if ( board.parentNode.querySelector(".l"+num) )
+          continue;
+        let line = document.createElement("div");
+        line.classList.add(who+"win");
+        line.classList.add("l"+num);
+        board.parentNode.appendChild(line);
+        var score = document.getElementById(who+"score");
+        score.innerHTML = parseInt(score.innerHTML)+1;
+      }
+  }
+
+  for ( let grid of root.querySelectorAll(".grid") ) {
+    let indices = [];
+    let sub, target = grid;
+    while ( sub = target.parentNode.closest(".board") ) {
+      indices.unshift([...sub.querySelectorAll(":scope>tbody>tr>td>*")].indexOf(target));
+      target = sub;
+    }
+    grid.indices = indices;
+  
+    indices = indices.slice(1);
+    let next = root.querySelector(".board");
+    while ( indices.length )
+      next = next.querySelectorAll(":scope>tbody>tr>td>*")[indices.shift()];
+    grid.next = next;
+
+    grid.addEventListener("mouseenter", mouseenter_handler);
+    grid.addEventListener("mouseleave", mouseleave_handler);
+  }
+  return root;
+}
+
+window.onload = () => document.body.appendChild(makeOXO(parseInt(window.location.hash.substr(1)) || 1));
+</script>
+
+</head>
+<body>
+
+</body>
+</html>
