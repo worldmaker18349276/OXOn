@@ -4,6 +4,7 @@
 <title>tensor of OXO game</title>
 <meta charset="utf-8">
 
+<script src="OXO.js"></script>
 <style>
 * {
   font-size: 20px;
@@ -26,7 +27,6 @@
 }
 .history[open] {
   padding: .5em;
-  overflow: scroll;
 }
 .history summary {
   font-weight: bold;
@@ -35,6 +35,11 @@
 .history[open] summary {
   border-bottom: 1px solid gray;
   margin-bottom: .5em;
+}
+.history .reset {
+  color: purple;
+  font-family: monospace;
+  font-size: 0.5em;
 }
 .history .record.O {
   color: blue;
@@ -140,8 +145,10 @@
 </style>
 
 <script>
-var OXO = document.getElementById("OXO");
+var game;
 function makeOXO(n) {
+  game = new OXO(n);
+
   var root = document.createElement("div");
   root.classList.add("root");
   root.innerHTML = "<span id='Oscore' style='color:blue;'>0</span><span>-</span><span id='Xscore' style='color:red;'>0</span>";
@@ -173,8 +180,11 @@ function makeOXO(n) {
   root.innerHTML += `
     <details class='history'>
       <summary>History</summary>
+      <a href='#' class='reset'>reset</a>
     </details>
   `;
+
+  var hash = "";
 
   root.addEventListener("click", function(event) {
     var target = event.target.nodeType===Node.TEXT_NODE ? event.target.parentNode : event.target;
@@ -190,32 +200,64 @@ function makeOXO(n) {
     else
       return;
 
+    var res = game.move(target.index);
+    if ( !res )
+      return;
     target.classList.add(A);
-    var record = document.createElement("div");
-    record.innerHTML = target.indices.slice(0);
-    record.classList.add("record");
-    record.classList.add(A);
-    root.querySelector(".history").appendChild(record);
-    var t = root.querySelectorAll(".history .record").length;
-    window.location.hash = t;
-    check(board, A);
 
-    this.querySelector(`.board.${A}`).classList.remove(A);
-    this.querySelector(`.board.${B}ready`).classList.add(B);
+    hash = "#"+game.serialize();
+    window.location.hash = hash;
+    addHistory(target.index, A);
+
+    for ( let [index, num] of res )
+      addLine(index, num, A);
+
+    updateRegion(game.preindex, B);
   });
+
+  function entries(board) {
+    return [...board.querySelectorAll(":scope>tbody>tr>td>*:not(.Owin):not(.Xwin)")];
+  }
+  function addHistory(index, who) {
+    var record = document.createElement("div");
+    record.innerHTML = index.join(",");
+    record.classList.add("record");
+    record.classList.add(who);
+    root.querySelector(".history").appendChild(record);
+  }
+  function addLine(index, num, who) {
+    index = index.slice();
+    let board = root.querySelector(".board");
+    while ( index.length )
+      board = entries(board)[index.shift()];
+
+    var line = document.createElement("div");
+    line.classList.add(`${who}win`);
+    line.classList.add(`l${num}`);
+    board.parentNode.appendChild(line);
+    var score = document.getElementById(`${who}score`);
+    score.innerHTML = parseInt(score.innerHTML)+1;
+  }
+  function updateRegion(index, who) {
+    for ( let board of root.querySelectorAll(".board.O") )
+      board.classList.remove("O");
+    for ( let board of root.querySelectorAll(".board.X") )
+      board.classList.remove("X");
+
+    let board = root.querySelector(".board");
+    if ( index ) {
+      index = index.slice();
+      while ( index.length )
+        board = entries(board)[index.shift()];
+    }
+    board.classList.add(who);
+  }
 
   var prev_target;
   root.addEventListener("mouseover", function(event) {
     var target = event.target.nodeType===Node.TEXT_NODE ? event.target.parentNode : event.target;
-    if ( !target.matches(".grid") )
+    if ( prev_target===target || !target.matches(".grid") )
       return;
-    if ( prev_target === target )
-      return;
-
-    for ( let board of root.querySelectorAll(".board.Oready") )
-      board.classList.remove("Oready");
-    for ( let board of root.querySelectorAll(".board.Xready") )
-      board.classList.remove("Xready");
 
     var board = target.closest(".board");
     var A, B;
@@ -225,57 +267,68 @@ function makeOXO(n) {
       [A, B] = ["X", "O"];
     else
       return;
-  
+
+    for ( let board of root.querySelectorAll(".board.Oready") )
+      board.classList.remove("Oready");
+    for ( let board of root.querySelectorAll(".board.Xready") )
+      board.classList.remove("Xready");
+
     var next = target.next;
     if ( !next.querySelector(".grid:not(.O):not(.X):not(:hover)") )
       next = root.querySelector(".board");
-
     next.classList.add(`${B}ready`);
   });
 
-  function check(board, who) {
-    var grids = Array.from(board.querySelectorAll(".grid"));
-    const check_list = ["012", "345", "678", "036", "147", "258", "048", "246"];
-    for ( let num of check_list )
-      if ( [...num].every(n => grids[parseInt(n)].matches(`.${who}`)) ) {
-        if ( board.parentNode.querySelector(`.l${num}`) )
-          continue;
-        let line = document.createElement("div");
-        line.classList.add(`${who}win`);
-        line.classList.add(`l${num}`);
-        board.parentNode.appendChild(line);
-        var score = document.getElementById(`${who}score`);
-        score.innerHTML = parseInt(score.innerHTML)+1;
-      }
-  }
-
   for ( let grid of root.querySelectorAll(".grid") ) {
-    let indices = [];
+    let index = [];
     let sub, target = grid;
     while ( sub = target.parentNode.closest(".board") ) {
-      indices.unshift([...sub.querySelectorAll(":scope>tbody>tr>td>*")].indexOf(target));
+      index.unshift(entries(sub).indexOf(target));
       target = sub;
     }
-    grid.indices = indices;
+    grid.index = index;
   
-    indices = indices.slice(1);
+    index = index.slice(1);
     let next = root.querySelector(".board");
-    while ( indices.length )
-      next = next.querySelectorAll(":scope>tbody>tr>td>*")[indices.shift()];
+    while ( index.length )
+      next = entries(next)[index.shift()];
     grid.next = next;
   }
 
-//   function undo() {
-//     var last = root.querySelectorAll(".history .record:last-child");
-//   }
-//   window.addEventListener("hashchange", function(event) {
-//     var t0 = root.querySelectorAll(".history .record").length;
-//     var t = parseInt(window.location.hash);
-//     if ( t > t0 )
-//       return window.alert("We can't back to future!");
-//     for ( let i=0; i<t0-t; i++ )
-//       undo();
-//   });
+  function reset() {
+    root.querySelector("#Oscore").innerHTML = "0";
+    root.querySelector("#Xscore").innerHTML = "0";
+
+    for ( let record of [...root.querySelectorAll(".history .record")] )
+      record.parentNode.removeChild(record);
+
+    for ( let grid of [...root.querySelectorAll(".grid.O")] )
+      grid.classList.remove("O");
+    for ( let grid of [...root.querySelectorAll(".grid.X")] )
+      grid.classList.remove("X");
+
+    for ( let win of [...root.querySelectorAll(".Owin")] )
+      win.parentNode.removeChild(win);
+    for ( let win of [...root.querySelectorAll(".Xwin")] )
+      win.parentNode.removeChild(win);
+
+    for ( let board of root.querySelectorAll(".board.O") )
+      board.classList.remove("O");
+    for ( let board of root.querySelectorAll(".board.X") )
+      board.classList.remove("X");
+    let board = root.querySelector(".board").classList.add("O");
+    game.reset();
+  }
+  function reload(records) {
+    reset();
+    if ( records != "" )
+      alert("coming soon!");
+  }
+
+  window.addEventListener("hashchange", function(event) {
+    if ( hash != window.location.hash )
+      reload(window.location.hash.substr(1));
+  });
 
   return root;
 }
