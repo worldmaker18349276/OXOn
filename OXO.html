@@ -36,20 +36,20 @@
   border-bottom: 1px solid gray;
   margin-bottom: .5em;
 }
-.history .reset {
-  color: purple;
+.history .reset, .history .record.O, .history .record.X {
+  display: block;
   font-family: monospace;
   font-size: 0.5em;
+  text-decoration: none;
+}
+.history .reset {
+  color: purple;
 }
 .history .record.O {
   color: blue;
-  font-family: monospace;
-  font-size: 0.5em;
 }
 .history .record.X {
   color: red;
-  font-family: monospace;
-  font-size: 0.5em;
 }
 
 .board.O {
@@ -184,7 +184,20 @@ function makeOXO(n) {
     </details>
   `;
 
-  var hash = "";
+  var hash = "#";
+
+  function entries(board) {
+    return [...board.querySelectorAll(":scope>tbody>tr>td>*:not(.Owin):not(.Xwin)")];
+  }
+  function get(index) {
+    var board = root.querySelector(".board");
+    if ( index ) {
+      index = index.slice();
+      while ( index.length )
+        board = entries(board)[index.shift()];
+    }
+    return board;
+  }
 
   root.addEventListener("click", function(event) {
     var target = event.target.nodeType===Node.TEXT_NODE ? event.target.parentNode : event.target;
@@ -205,9 +218,8 @@ function makeOXO(n) {
       return;
     target.classList.add(A);
 
-    hash = "#"+game.serialize();
-    window.location.hash = hash;
     addHistory(target.index, A);
+    window.location.hash = hash;
 
     for ( let [index, num] of res )
       addLine(index, num, A);
@@ -215,26 +227,27 @@ function makeOXO(n) {
     updateRegion(game.preindex, B);
   });
 
-  function entries(board) {
-    return [...board.querySelectorAll(":scope>tbody>tr>td>*:not(.Owin):not(.Xwin)")];
-  }
   function addHistory(index, who) {
-    var record = document.createElement("div");
+    if ( hash == "#" )
+      hash = hash + index.join(",");
+    else
+      hash = hash + "-" + index.join(",");
+
+    var record = document.createElement("a");
     record.innerHTML = index.join(",");
     record.classList.add("record");
     record.classList.add(who);
+    record.href = hash;
     root.querySelector(".history").appendChild(record);
   }
   function addLine(index, num, who) {
-    index = index.slice();
-    let board = root.querySelector(".board");
-    while ( index.length )
-      board = entries(board)[index.shift()];
+    let board = get(index);
 
     var line = document.createElement("div");
     line.classList.add(`${who}win`);
     line.classList.add(`l${num}`);
     board.parentNode.appendChild(line);
+
     var score = document.getElementById(`${who}score`);
     score.innerHTML = parseInt(score.innerHTML)+1;
   }
@@ -244,13 +257,7 @@ function makeOXO(n) {
     for ( let board of root.querySelectorAll(".board.X") )
       board.classList.remove("X");
 
-    let board = root.querySelector(".board");
-    if ( index ) {
-      index = index.slice();
-      while ( index.length )
-        board = entries(board)[index.shift()];
-    }
-    board.classList.add(who);
+    get(index).classList.add(who);
   }
 
   var prev_target;
@@ -287,12 +294,7 @@ function makeOXO(n) {
       target = sub;
     }
     grid.index = index;
-  
-    index = index.slice(1);
-    let next = root.querySelector(".board");
-    while ( index.length )
-      next = entries(next)[index.shift()];
-    grid.next = next;
+    grid.next = get(index.slice(1));
   }
 
   function reset() {
@@ -317,16 +319,33 @@ function makeOXO(n) {
     for ( let board of root.querySelectorAll(".board.X") )
       board.classList.remove("X");
     let board = root.querySelector(".board").classList.add("O");
+
+    hash = "#";
     game.reset();
   }
   function reload(records) {
     reset();
-    if ( records != "" )
-      alert("coming soon!");
+
+    game.load(records, false);
+
+    if ( records != "" ) {
+      for ( let [n, index] of game.history.entries() ) {
+        get(index).classList.add(n%2==0?"O":"X");
+        addHistory(game.history[n], n%2==0?"O":"X");
+      }
+
+      for ( let [index, num] of game.computeScores( 1) )
+        addLine(index, num, "O");
+      for ( let [index, num] of game.computeScores(-1) )
+        addLine(index, num, "X");
+
+      updateRegion(game.preindex, game.who==1?"O":"X");
+    }
+    window.location.hash = hash;
   }
 
   window.addEventListener("hashchange", function(event) {
-    if ( hash != window.location.hash )
+    if ( hash != (window.location.hash || "#") )
       reload(window.location.hash.substr(1));
   });
 
