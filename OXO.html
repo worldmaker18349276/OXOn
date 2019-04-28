@@ -17,6 +17,36 @@
   position: relative;
   border: none;
 }
+
+.history {
+  border: 1px solid gray;
+  border-radius: 1px;
+  padding: .5em .5em 0;
+  width: 10em;
+}
+.history[open] {
+  padding: .5em;
+  overflow: scroll;
+}
+.history summary {
+  font-weight: bold;
+  margin: -.5em -.5em 0;
+}
+.history[open] summary {
+  border-bottom: 1px solid gray;
+  margin-bottom: .5em;
+}
+.history .record.O {
+  color: blue;
+  font-family: monospace;
+  font-size: 0.5em;
+}
+.history .record.X {
+  color: red;
+  font-family: monospace;
+  font-size: 0.5em;
+}
+
 .board.O {
   outline: 3px solid blue;
 }
@@ -140,6 +170,12 @@ function makeOXO(n) {
   root.innerHTML += `<table><tr><td class='board-container'>${board}</td></tr></table>`;
   root.querySelector(".board").classList.add("O");
 
+  root.innerHTML += `
+    <details class='history'>
+      <summary>History</summary>
+    </details>
+  `;
+
   root.addEventListener("click", function(event) {
     var target = event.target.nodeType===Node.TEXT_NODE ? event.target.parentNode : event.target;
     if ( !target.matches(".grid:not(.O):not(.X)") )
@@ -155,7 +191,13 @@ function makeOXO(n) {
       return;
 
     target.classList.add(A);
-    console.log("%c"+target.indices.slice(0), A=="O" ? "color:blue" : "color:red");
+    var record = document.createElement("div");
+    record.innerHTML = target.indices.slice(0);
+    record.classList.add("record");
+    record.classList.add(A);
+    root.querySelector(".history").appendChild(record);
+    var t = root.querySelectorAll(".history .record").length;
+    window.location.hash = t;
     check(board, A);
 
     this.querySelector(`.board.${A}`).classList.remove(A);
@@ -222,6 +264,19 @@ function makeOXO(n) {
       next = next.querySelectorAll(":scope>tbody>tr>td>*")[indices.shift()];
     grid.next = next;
   }
+
+//   function undo() {
+//     var last = root.querySelectorAll(".history .record:last-child");
+//   }
+//   window.addEventListener("hashchange", function(event) {
+//     var t0 = root.querySelectorAll(".history .record").length;
+//     var t = parseInt(window.location.hash);
+//     if ( t > t0 )
+//       return window.alert("We can't back to future!");
+//     for ( let i=0; i<t0-t; i++ )
+//       undo();
+//   });
+
   return root;
 }
 
