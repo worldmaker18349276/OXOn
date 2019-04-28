@@ -8,11 +8,14 @@
 * {
   font-size: 20px;
 }
-
 .board, .board>tbody>tr>td {
   position: relative;
   border: 1px solid black;
   border-collapse: collapse;
+}
+.board-container {
+  position: relative;
+  border: none;
 }
 .board.O {
   outline: 3px solid blue;
@@ -111,20 +114,7 @@ var OXO = document.getElementById("OXO");
 function makeOXO(n) {
   var root = document.createElement("div");
   root.classList.add("root");
-
-  var O = document.createElement("span");
-  var vs = document.createElement("span");
-  var X = document.createElement("span");
-  O.id = "Oscore";
-  X.id = "Xscore";
-  O.style = "color: blue";
-  X.style = "color: red";
-  O.innerHTML = "0";
-  vs.innerHTML = "-";
-  X.innerHTML = "0";
-  root.appendChild(O);
-  root.appendChild(vs);
-  root.appendChild(X);
+  root.innerHTML = "<span id='Oscore' style='color:blue;'>0</span><span>-</span><span id='Xscore' style='color:red;'>0</span>";
 
   var board = "<div class='grid'></div>";
   for ( let i=0; i<n; i++ )
@@ -147,19 +137,19 @@ function makeOXO(n) {
         </tr>
       </table>
     `;
-  root.innerHTML += board;
+  root.innerHTML += `<table><tr><td class='board-container'>${board}</td></tr></table>`;
   root.querySelector(".board").classList.add("O");
 
   root.addEventListener("click", function(event) {
-    var target = (event.target.nodeType === Node.TEXT_NODE) ? event.target.parentNode : event.target;
+    var target = event.target.nodeType===Node.TEXT_NODE ? event.target.parentNode : event.target;
     if ( !target.matches(".grid:not(.O):not(.X)") )
       return;
 
     var board = target.closest(".board");
     var A, B;
-    if ( board.matches(".O") || board.matches(".root>.board.O .board") )
+    if ( board.matches(".O") || board.matches(".root .board-container>.board.O .board") )
       [A, B] = ["O", "X"];
-    else if ( board.matches(".X") || board.matches(".root>.board.X .board") )
+    else if ( board.matches(".X") || board.matches(".root .board-container>.board.X .board") )
       [A, B] = ["X", "O"];
     else
       return;
@@ -168,50 +158,51 @@ function makeOXO(n) {
     console.log("%c"+target.indices.slice(0), A=="O" ? "color:blue" : "color:red");
     check(board, A);
 
-    this.querySelector(".board."+A).classList.remove(A);
-    this.querySelector(".board."+B+"ready").classList.add(B);
+    this.querySelector(`.board.${A}`).classList.remove(A);
+    this.querySelector(`.board.${B}ready`).classList.add(B);
   });
 
-  function mouseenter_handler(event) {
+  var prev_target;
+  root.addEventListener("mouseover", function(event) {
+    var target = event.target.nodeType===Node.TEXT_NODE ? event.target.parentNode : event.target;
+    if ( !target.matches(".grid") )
+      return;
+    if ( prev_target === target )
+      return;
+
     for ( let board of root.querySelectorAll(".board.Oready") )
       board.classList.remove("Oready");
     for ( let board of root.querySelectorAll(".board.Xready") )
       board.classList.remove("Xready");
 
-    var board = this.closest(".board");
+    var board = target.closest(".board");
     var A, B;
-    if ( board.matches(".O") || board.matches(".root>.board.O .board") )
+    if ( board.matches(".O") || board.matches(".root .board-container>.board.O .board") )
       [A, B] = ["O", "X"];
-    else if ( board.matches(".X") || board.matches(".root>.board.X .board") )
+    else if ( board.matches(".X") || board.matches(".root .board-container>.board.X .board") )
       [A, B] = ["X", "O"];
     else
       return;
   
-    var next = this.next;
+    var next = target.next;
     if ( !next.querySelector(".grid:not(.O):not(.X):not(:hover)") )
       next = root.querySelector(".board");
 
-    next.classList.add(B+"ready");
-  }
-  function mouseleave_handler(event) {
-    for ( let board of this.querySelectorAll(".board.Oready") )
-      board.classList.remove("Oready");
-    for ( let board of this.querySelectorAll(".board.Xready") )
-      board.classList.remove("Xready");
-  }
+    next.classList.add(`${B}ready`);
+  });
 
   function check(board, who) {
     var grids = Array.from(board.querySelectorAll(".grid"));
     const check_list = ["012", "345", "678", "036", "147", "258", "048", "246"];
     for ( let num of check_list )
-      if ( [...num].every(n => grids[parseInt(n)].matches("."+who)) ) {
-        if ( board.parentNode.querySelector(".l"+num) )
+      if ( [...num].every(n => grids[parseInt(n)].matches(`.${who}`)) ) {
+        if ( board.parentNode.querySelector(`.l${num}`) )
           continue;
         let line = document.createElement("div");
-        line.classList.add(who+"win");
-        line.classList.add("l"+num);
+        line.classList.add(`${who}win`);
+        line.classList.add(`l${num}`);
         board.parentNode.appendChild(line);
-        var score = document.getElementById(who+"score");
+        var score = document.getElementById(`${who}score`);
         score.innerHTML = parseInt(score.innerHTML)+1;
       }
   }
@@ -230,14 +221,11 @@ function makeOXO(n) {
     while ( indices.length )
       next = next.querySelectorAll(":scope>tbody>tr>td>*")[indices.shift()];
     grid.next = next;
-
-    grid.addEventListener("mouseenter", mouseenter_handler);
-    grid.addEventListener("mouseleave", mouseleave_handler);
   }
   return root;
 }
 
-window.onload = () => document.body.appendChild(makeOXO(parseInt(window.location.hash.substr(1)) || 1));
+window.onload = () => document.body.appendChild(makeOXO(parseInt(new URLSearchParams(window.location.search).get("n")) || 1));
 </script>
 
 </head>
