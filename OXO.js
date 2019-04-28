@@ -138,3 +138,45 @@ class OXO {
     return true;
   }
 }
+
+class AIdiot {
+  constructor(n, level=0) {
+    this.level = level;
+    this.sandbox = new OXO(n);
+  }
+
+  gain(game, index, level=this.level) {
+    if ( level == 0 )
+      return 0;
+
+    const who = game.who;
+    var res = 0;
+    var pre = index.slice(0,-1);
+    for ( let line of check_list )
+      if ( line.includes(index[index.length-1]) )
+        res += line.map(i => game.get([...pre,i])*who+1).reduce((a,b)=>a+b);
+
+    if ( level > 1 ) {
+      var records = game.serialize();
+      game.move(index);
+      var moves = Array.from(game.possible_moves())
+                       .map(index_ => this.gain(game, index_, level-1));
+      var loss = moves.length==0 ? 0 : moves.reduce((a,b) => a<b?b:a);
+      game.load(records, false);
+      res = res - loss;
+    }
+
+    return res;
+  }
+  predict(game, level=this.level) {
+    this.sandbox.load(game.serialize(), false);
+    var res = Array.from(this.sandbox.possible_moves())
+                   .map(index => [index, this.gain(this.sandbox, index, level)]);
+    if ( res.length == 0 )
+      return;
+    var max_gain = res.map(e => e[1]).reduce((a,b) => a<b?b:a);
+    var indices = res.filter(e => e[1]==max_gain).map(e => e[0]);
+    var n = Math.floor(Math.random() * indices.length);
+    return indices[n];
+  }
+}
