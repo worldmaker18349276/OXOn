@@ -302,9 +302,9 @@ class OXOboard {
   reload(records) {
     this.reset();
 
-    this.game.load(records, false);
-
     if ( records != "" ) {
+      this.game.load(records, false);
+
       for ( let [n, index] of this.game.history.entries() ) {
         this.get(index).classList.add(n%2==0?"O":"X");
         this.addHistory(this.game.history[n], n%2==0?"O":"X");
@@ -371,6 +371,15 @@ window.onload = () => {
           return;
         board.set(board.get(index));
       }
+    });
+  }
+
+  if ( query.has("cheat") ) {
+    window.addEventListener("keydown", event => {
+      var target = board.root.querySelector(".grid:hover");
+      var level = parseInt(event.key);
+      if ( target && level )
+        console.log(AI.gain(board.game, target.index, level));
     });
   }
 };

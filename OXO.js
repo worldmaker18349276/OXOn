@@ -153,8 +153,18 @@ class AIdiot {
     var res = 0;
     var pre = index.slice(0,-1);
     for ( let line of check_list )
-      if ( line.includes(index[index.length-1]) )
-        res += line.map(i => game.get([...pre,i])*who+1).reduce((a,b)=>a+b);
+      if ( line.includes(index[index.length-1]) ) {
+        line = line.map(i => game.get([...pre,i])*who);
+        let vec = [line.filter(i => i==1).length, line.filter(i => i==-1).length].join(",");
+        switch ( vec ) {
+          case "2,0": res += 3; break;
+          case "0,2": res += 3; break;
+          case "1,0": res += 2; break;
+          case "0,1": res += 2; break;
+          case "0,0": res += 1; break;
+          case "1,1": res += 0; break;
+        }
+      }
 
     if ( level > 1 ) {
       var records = game.serialize();
