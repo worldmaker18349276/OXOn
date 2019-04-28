@@ -373,6 +373,17 @@ window.onload = () => {
       }
     });
   }
+  if ( query.has("level2") ) {
+    var AI2 = new AIdiot(n, parseInt(query.get("level2")));
+    board.root.addEventListener("statechanged", event => {
+      if ( board.game.who == 1 ) {
+        let index = AI2.predict(board.game);
+        if ( !index )
+          return;
+        board.set(board.get(index));
+      }
+    });
+  }
 
   if ( query.has("cheat") ) {
     window.addEventListener("keydown", event => {
